@@ -67,10 +67,9 @@ module TopologicalInventory
         )
       end
 
-      require 'byebug'; byebug
       save_vms_to_topological_inventory(topological_inventory_vms, source)
     rescue => e
-      require 'byebug'; byebug
+      # TODO(lsmola) Log error
     end
 
     def save_vms_to_topological_inventory(topological_inventory_vms, source)
@@ -83,7 +82,7 @@ module TopologicalInventory
           :schema      => TopologicalInventoryIngressApiClient::Schema.new(:name => "Default"),
           :source      => source,
           :collections => [
-            TopologicalInventoryIngressApiClient::InventoryCollection.new(:name => :vms, :data => topological_inventory_vms)
+            TopologicalInventoryIngressApiClient::InventoryCollection.new(:name => :vms, :partial_data => topological_inventory_vms)
           ],
         )
       )
@@ -115,7 +114,7 @@ module TopologicalInventory
       # TODO(lsmola) replace with batch filtering
       (changed_vms + created_vms + deleted_vms).map do |id|
         get_tpinv_host(x_rh_identity, id)
-      end
+      end.compact
     end
 
     def get_tpinv_host(x_rh_identity, id)
@@ -125,6 +124,8 @@ module TopologicalInventory
           :url     => "#{topological_inventory_host}/v0.1/vms/#{id}",
           :headers => {"x-rh-identity" => x_rh_identity}).body
       )
+    rescue RestClient::NotFound
+      nil
     end
 
     def get(uri)
