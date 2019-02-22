@@ -56,14 +56,14 @@ module TopologicalInventory
         next if mac_addresses.nil? || mac_addresses.empty?
 
         # Skip processing if we've already created this host in Host Based
-        next if host["host_inventory_id"]
+        next if host["host_inventory_uuid"]
 
         data         = {:mac_addresses => mac_addresses, :account => account_number}
         created_host = JSON.parse(create_host_inv_hosts(x_rh_identity, data).body)
 
         topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
-          :source_ref        => host["source_ref"],
-          :host_inventory_id => created_host["id"],
+          :source_ref          => host["source_ref"],
+          :host_inventory_uuid => created_host["id"],
         )
       end
 
