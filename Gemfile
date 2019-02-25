@@ -10,6 +10,12 @@ gem "rest-client"
 
 gem "topological_inventory-ingress_api-client", :git => "https://github.com/ManageIQ/topological_inventory-ingress_api-client-ruby", :branch => "master"
 
+group :development, :test do
+  gem "rspec"
+  gem "simplecov"
+  gem "webmock"
+end
+
 #
 # Custom Gemfile modifications
 #
