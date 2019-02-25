@@ -50,7 +50,7 @@ module TopologicalInventory
 
       topological_inventory_vms = []
 
-      get_tpinv_hosts(payload, x_rh_identity).each do |host|
+      get_topology_inventory_vms(payload, x_rh_identity).each do |host|
         # TODO(lsmola) filtering out if we don't have mac adress until source_ref becomes canonical fact
         mac_addresses = host.dig("extra", "network", "mac_addresses")
         next if mac_addresses.nil? || mac_addresses.empty?
@@ -59,7 +59,7 @@ module TopologicalInventory
         next if host["host_inventory_uuid"]
 
         data         = {:mac_addresses => mac_addresses, :account => account_number}
-        created_host = JSON.parse(create_host_inv_hosts(x_rh_identity, data).body)
+        created_host = JSON.parse(create_host_inventory_hosts(x_rh_identity, data).body)
 
         topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
           :source_ref          => host["source_ref"],
@@ -92,7 +92,7 @@ module TopologicalInventory
       TopologicalInventoryIngressApiClient::DefaultApi.new
     end
 
-    def create_host_inv_hosts(x_rh_identity, data)
+    def create_host_inventory_hosts(x_rh_identity, data)
       RestClient::Request.execute(
         :method  => :post,
         :payload => data.to_json,
@@ -101,11 +101,15 @@ module TopologicalInventory
       )
     end
 
-    def get_host_inv_hosts(x_rh_identity)
-      RestClient::Request.execute(:method => :get, :url => "http://#{host_inventory_api}v1/hosts", :headers => {"x-rh-identity" => x_rh_identity})
+    def get_host_inventory_hosts(x_rh_identity)
+      RestClient::Request.execute(
+        :method  => :get,
+        :url     => "http://#{host_inventory_api}v1/hosts",
+        :headers => {"x-rh-identity" => x_rh_identity}
+      )
     end
 
-    def get_tpinv_hosts(payload, x_rh_identity)
+    def get_topology_inventory_vms(payload, x_rh_identity)
       vms         = payload.dig("payload", "vms") || {}
       changed_vms = (vms["updated"] || []).map { |x| x["id"] }
       created_vms = (vms["created"] || []).map { |x| x["id"] }
@@ -113,11 +117,11 @@ module TopologicalInventory
 
       # TODO(lsmola) replace with batch filtering
       (changed_vms + created_vms + deleted_vms).map do |id|
-        get_tpinv_host(x_rh_identity, id)
+        get_topology_inventory_vm(x_rh_identity, id)
       end.compact
     end
 
-    def get_tpinv_host(x_rh_identity, id)
+    def get_topology_inventory_vm(x_rh_identity, id)
       JSON.parse(
         RestClient::Request.execute(
           :method  => :get,
