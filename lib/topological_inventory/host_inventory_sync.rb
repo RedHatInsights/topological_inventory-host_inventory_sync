@@ -66,11 +66,11 @@ module TopologicalInventory
       updated_topological_inventory_vms = []
       topological_inventory_vms.each do |host|
         # TODO(lsmola) filtering out if we don't have mac adress until source_ref becomes canonical fact
-        mac_addresses = host.dig("extra", "network", "mac_addresses")
+        mac_addresses = host["mac_addresses"]
         next if mac_addresses.nil? || mac_addresses.empty?
 
         # Skip processing if we've already created this host in Host Based
-        next if host["host_inventory_uuid"]
+        next if !host["host_inventory_uuid"].nil? && !host["host_inventory_uuid"].empty?
 
         data         = {:mac_addresses => mac_addresses, :account => account_number}
         created_host = JSON.parse(create_host_inventory_hosts(x_rh_identity, data).body)
