@@ -2,6 +2,7 @@ require "concurrent"
 require "json"
 require "manageiq-messaging"
 require 'rest_client'
+require "topological_inventory/logging"
 require "topological_inventory-ingress_api-client"
 
 module TopologicalInventory
@@ -18,6 +19,7 @@ module TopologicalInventory
     end
 
     def run
+      logger.info("Starting Host Inventory sync...")
       client = ManageIQ::Messaging::Client.open(default_messaging_opts.merge(:host => queue_host, :port => queue_port))
 
       queue_opts = {
@@ -51,9 +53,18 @@ module TopologicalInventory
         return
       end
 
-      topological_inventory_vms = []
+      vms = extract_vms(payload)
+      return if payload.empty? # No vms were found
 
-      get_topological_inventory_vms(payload, x_rh_identity).each do |host|
+      logger.info("#{vms.size} VMs found for account_number: #{account_number} and source: #{source}.")
+
+      logger.info("Fetching #{vms.size} Topological Inventory VMs from API.")
+      topological_inventory_vms = get_topological_inventory_vms(vms, x_rh_identity)
+      logger.info("Fetched #{vms.size} Topological Inventory VMs from API.")
+
+      logger.info("Syncing #{topological_inventory_vms.size} Topological Inventory VMs with Host Inventory")
+      updated_topological_inventory_vms = []
+      topological_inventory_vms.each do |host|
         # TODO(lsmola) filtering out if we don't have mac adress until source_ref becomes canonical fact
         mac_addresses = host.dig("extra", "network", "mac_addresses")
         next if mac_addresses.nil? || mac_addresses.empty?
@@ -64,21 +75,29 @@ module TopologicalInventory
         data         = {:mac_addresses => mac_addresses, :account => account_number}
         created_host = JSON.parse(create_host_inventory_hosts(x_rh_identity, data).body)
 
-        topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
+        updated_topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
           :source_ref          => host["source_ref"],
           :host_inventory_uuid => created_host["id"],
         )
       end
 
-      save_vms_to_topological_inventory(topological_inventory_vms, source)
+      logger.info(
+        "Synced #{topological_inventory_vms.size} Topological Inventory VMs with Host Inventory. "\
+        "Created: #{updated_topological_inventory_vms.size}, "\
+        "Skipped: #{topological_inventory_vms.size - updated_topological_inventory_vms.size}"
+      )
+
+      return if updated_topological_inventory_vms.empty?
+
+      logger.info("Updating Topological Inventory with #{updated_topological_inventory_vms.size} VMs.")
+      save_vms_to_topological_inventory(updated_topological_inventory_vms, source)
+      logger.info("Updated Topological Inventory with #{updated_topological_inventory_vms.size} VMs.")
     rescue => e
       logger.error(e.message)
       logger.error(e.backtrace.join("\n"))
     end
 
     def save_vms_to_topological_inventory(topological_inventory_vms, source)
-      return if topological_inventory_vms.empty?
-
       # TODO(lsmola) if VM will have subcollections, this will need to send just partial data, otherwise all subcollections
       # would get deleted. Alternative is having another endpoint than :vms, for doing update only operation.
       ingress_api_client.save_inventory(
@@ -113,14 +132,18 @@ module TopologicalInventory
       )
     end
 
-    def get_topological_inventory_vms(payload, x_rh_identity)
+    def extract_vms(payload)
       vms         = payload.dig("payload", "vms") || {}
       changed_vms = (vms["updated"] || []).map { |x| x["id"] }
       created_vms = (vms["created"] || []).map { |x| x["id"] }
       deleted_vms = (vms["deleted"] || []).map { |x| x["id"] }
 
+      (changed_vms + created_vms + deleted_vms).compact
+    end
+
+    def get_topological_inventory_vms(vms, x_rh_identity)
       # TODO(lsmola) replace with batch filtering once Topological Inventory implements that
-      (changed_vms + created_vms + deleted_vms).map do |id|
+      vms.map do |id|
         get_topological_inventory_vm(x_rh_identity, id)
       end.compact
     end
@@ -129,7 +152,7 @@ module TopologicalInventory
       JSON.parse(
         RestClient::Request.execute(
           :method  => :get,
-          :url     => "#{topological_inventory_api}/v0.1/vms/#{id}",
+          :url     => "#{topological_inventory_api}v0.1/vms/#{id}",
           :headers => {"x-rh-identity" => x_rh_identity}).body
       )
     rescue RestClient::NotFound
