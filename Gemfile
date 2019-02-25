@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 gem "activesupport"
 gem "concurrent-ruby"
 gem "optimist"
+gem "manageiq-loggers", "~> 0.1.0"
 gem 'manageiq-messaging'
 gem "more_core_extensions"
 gem "rest-client"

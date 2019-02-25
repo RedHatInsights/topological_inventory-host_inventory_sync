@@ -6,10 +6,11 @@ require "topological_inventory-ingress_api-client"
 
 module TopologicalInventory
   class HostInventorySync
+    include Logging
+
     attr_reader :source, :sns_topic
 
     def initialize(topological_inventory_api, host_inventory_api, queue_host, queue_port)
-      self.log                       = Logger.new(STDOUT)
       self.queue_host                = queue_host
       self.queue_port                = queue_port
       self.topological_inventory_api = topological_inventory_api
@@ -45,12 +46,14 @@ module TopologicalInventory
       source         = payload["source"]
       x_rh_identity  = Base64.encode64({"identity" => {"account_number" => account_number}}.to_json)
 
-      # TODO(lsmola) log error about tenant info missing
-      return unless payload["external_tenant"]
+      unless payload["external_tenant"]
+        logger.error("Skipping payload because of missing :external_tenant. Payload: #{payload}")
+        return
+      end
 
       topological_inventory_vms = []
 
-      get_topology_inventory_vms(payload, x_rh_identity).each do |host|
+      get_topological_inventory_vms(payload, x_rh_identity).each do |host|
         # TODO(lsmola) filtering out if we don't have mac adress until source_ref becomes canonical fact
         mac_addresses = host.dig("extra", "network", "mac_addresses")
         next if mac_addresses.nil? || mac_addresses.empty?
@@ -69,7 +72,8 @@ module TopologicalInventory
 
       save_vms_to_topological_inventory(topological_inventory_vms, source)
     rescue => e
-      # TODO(lsmola) Log error
+      logger.error(e.message)
+      logger.error(e.backtrace.join("\n"))
     end
 
     def save_vms_to_topological_inventory(topological_inventory_vms, source)
@@ -109,19 +113,19 @@ module TopologicalInventory
       )
     end
 
-    def get_topology_inventory_vms(payload, x_rh_identity)
+    def get_topological_inventory_vms(payload, x_rh_identity)
       vms         = payload.dig("payload", "vms") || {}
       changed_vms = (vms["updated"] || []).map { |x| x["id"] }
       created_vms = (vms["created"] || []).map { |x| x["id"] }
       deleted_vms = (vms["deleted"] || []).map { |x| x["id"] }
 
-      # TODO(lsmola) replace with batch filtering
+      # TODO(lsmola) replace with batch filtering once Topological Inventory implements that
       (changed_vms + created_vms + deleted_vms).map do |id|
-        get_topology_inventory_vm(x_rh_identity, id)
+        get_topological_inventory_vm(x_rh_identity, id)
       end.compact
     end
 
-    def get_topology_inventory_vm(x_rh_identity, id)
+    def get_topological_inventory_vm(x_rh_identity, id)
       JSON.parse(
         RestClient::Request.execute(
           :method  => :get,
@@ -129,33 +133,8 @@ module TopologicalInventory
           :headers => {"x-rh-identity" => x_rh_identity}).body
       )
     rescue RestClient::NotFound
+      logger.info("Vm #{id} was not found in Topological Inventory")
       nil
-    end
-
-    def get(uri)
-      uri     = URI.parse(uri)
-      options = {open_timeout: 15, read_timeout: 30}
-      options.merge!(use_ssl: true) if uri.scheme == "https"
-
-      Net::HTTP.start(uri.host, uri.port, options) do |http|
-        get            = Net::HTTP::Get.new(uri.request_uri)
-        get["headers"] = "x-rh-identity: eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6ImFiYzEyMyIsIm9yZ19pZCI6ImJjZDIzNCJ9fQ=="
-        http.request(get)
-      end
-    end
-
-    def post(payload)
-      uri     = URI.parse(host_inventory_api)
-      options = {open_timeout: 15, read_timeout: 30}
-      options.merge!(use_ssl: true) if uri.scheme == "https"
-
-      Net::HTTP.start(uri.host, uri.port, options) do |http|
-        post                 = Net::HTTP::Post.new(uri.request_uri)
-        post.body            = JSON.dump(payload)
-        post["Content-Type"] = "application/json"
-
-        http.request(post)
-      end
     end
 
     def default_messaging_opts
