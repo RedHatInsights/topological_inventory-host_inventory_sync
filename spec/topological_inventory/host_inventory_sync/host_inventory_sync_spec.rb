@@ -37,13 +37,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
       host_inventory_sync_service = host_inventory_sync
       logger                      = double
       allow(host_inventory_sync_service).to receive(:logger).and_return(logger)
-      allow(logger).to receive(:info).with("5 VMs found for account_number: #{account_number} and source: #{source}.")
-      allow(logger).to receive(:info).with("Fetching 5 Topological Inventory VMs from API.")
-      allow(logger).to receive(:info).with("Fetched 5 Topological Inventory VMs from API.")
-      allow(logger).to receive(:info).with("Syncing 5 Topological Inventory VMs with Host Inventory")
-      allow(logger).to receive(:info).with("Synced 5 Topological Inventory VMs with Host Inventory. Created: 3, Skipped: 2")
-      allow(logger).to receive(:info).with("Updating Topological Inventory with 3 VMs.")
-      allow(logger).to receive(:info).with("Updated Topological Inventory with 3 VMs.")
+      allow(logger).to receive(:info).exactly(7).times
 
       expect(host_inventory_sync_service).to(
         receive(:get_topological_inventory_vms)
