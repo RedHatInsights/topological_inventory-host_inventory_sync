@@ -8,12 +8,12 @@ module TopologicalInventory
   class HostInventorySync
     attr_reader :source, :sns_topic
 
-    def initialize(topological_inventory_host, host_based_inventory_host, queue_host, queue_port)
-      self.log                        = Logger.new(STDOUT)
-      self.queue_host                 = queue_host
-      self.queue_port                 = queue_port
-      self.topological_inventory_host = topological_inventory_host
-      self.host_based_inventory_host  = host_based_inventory_host
+    def initialize(topological_inventory_api, host_inventory_api, queue_host, queue_port)
+      self.log                       = Logger.new(STDOUT)
+      self.queue_host                = queue_host
+      self.queue_port                = queue_port
+      self.topological_inventory_api = topological_inventory_api
+      self.host_inventory_api        = host_inventory_api
     end
 
     def run
@@ -37,7 +37,7 @@ module TopologicalInventory
 
     private
 
-    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_host, :host_based_inventory_host
+    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api, :host_inventory_api
 
     def process_message(message)
       payload        = message.payload
@@ -96,13 +96,13 @@ module TopologicalInventory
       RestClient::Request.execute(
         :method  => :post,
         :payload => data.to_json,
-        :url     => "http://#{host_based_inventory_host}v1/hosts",
+        :url     => "http://#{host_inventory_api}v1/hosts",
         :headers => {"Content-Type" => "application/json", "x-rh-identity" => x_rh_identity}
       )
     end
 
     def get_host_inv_hosts(x_rh_identity)
-      RestClient::Request.execute(:method => :get, :url => "http://#{host_based_inventory_host}v1/hosts", :headers => {"x-rh-identity" => x_rh_identity})
+      RestClient::Request.execute(:method => :get, :url => "http://#{host_inventory_api}v1/hosts", :headers => {"x-rh-identity" => x_rh_identity})
     end
 
     def get_tpinv_hosts(payload, x_rh_identity)
@@ -121,7 +121,7 @@ module TopologicalInventory
       JSON.parse(
         RestClient::Request.execute(
           :method  => :get,
-          :url     => "#{topological_inventory_host}/v0.1/vms/#{id}",
+          :url     => "#{topological_inventory_api}/v0.1/vms/#{id}",
           :headers => {"x-rh-identity" => x_rh_identity}).body
       )
     rescue RestClient::NotFound
@@ -141,7 +141,7 @@ module TopologicalInventory
     end
 
     def post(payload)
-      uri     = URI.parse(host_based_inventory_host)
+      uri     = URI.parse(host_inventory_api)
       options = {open_timeout: 15, read_timeout: 30}
       options.merge!(use_ssl: true) if uri.scheme == "https"
 
