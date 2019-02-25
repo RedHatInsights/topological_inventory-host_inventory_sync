@@ -60,7 +60,7 @@ module TopologicalInventory
 
       logger.info("Fetching #{vms.size} Topological Inventory VMs from API.")
       topological_inventory_vms = get_topological_inventory_vms(vms, x_rh_identity)
-      logger.info("Fetched #{vms.size} Topological Inventory VMs from API.")
+      logger.info("Fetched #{topological_inventory_vms.size} Topological Inventory VMs from API.")
 
       logger.info("Syncing #{topological_inventory_vms.size} Topological Inventory VMs with Host Inventory")
       updated_topological_inventory_vms = []
@@ -119,7 +119,7 @@ module TopologicalInventory
       RestClient::Request.execute(
         :method  => :post,
         :payload => data.to_json,
-        :url     => "http://#{host_inventory_api}v1/hosts",
+        :url     => "#{host_inventory_api}v1/hosts",
         :headers => {"Content-Type" => "application/json", "x-rh-identity" => x_rh_identity}
       )
     end
@@ -127,7 +127,7 @@ module TopologicalInventory
     def get_host_inventory_hosts(x_rh_identity)
       RestClient::Request.execute(
         :method  => :get,
-        :url     => "http://#{host_inventory_api}v1/hosts",
+        :url     => "#{host_inventory_api}v1/hosts",
         :headers => {"x-rh-identity" => x_rh_identity}
       )
     end
