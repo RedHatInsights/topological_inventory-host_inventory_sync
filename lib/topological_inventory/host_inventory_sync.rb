@@ -23,7 +23,7 @@ module TopologicalInventory
       client = ManageIQ::Messaging::Client.open(default_messaging_opts.merge(:host => queue_host, :port => queue_port))
 
       queue_opts = {
-        :service     => "platform.topological-inventory.persister-output",
+        :service     => "platform.topological-inventory.persister-output-stream",
         :persist_ref => "host_inventory_sync_worker"
       }
 
