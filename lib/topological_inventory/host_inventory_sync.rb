@@ -65,14 +65,15 @@ module TopologicalInventory
       logger.info("Syncing #{topological_inventory_vms.size} Topological Inventory VMs with Host Inventory")
       updated_topological_inventory_vms = []
       topological_inventory_vms.each do |host|
-        # TODO(lsmola) filtering out if we don't have mac adress until source_ref becomes canonical fact
-        mac_addresses = host["mac_addresses"]
-        next if mac_addresses.nil? || mac_addresses.empty?
-
         # Skip processing if we've already created this host in Host Based
         next if !host["host_inventory_uuid"].nil? && !host["host_inventory_uuid"].empty?
 
-        data         = {:mac_addresses => mac_addresses, :account => account_number}
+        data         = {
+          :display_name  => host["name"],
+          :source_ref    => host["source_ref"],
+          :mac_addresses => host["mac_addresses"],
+          :account       => account_number
+        }
         created_host = JSON.parse(create_host_inventory_hosts(x_rh_identity, data).body)
 
         updated_topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
@@ -99,13 +100,15 @@ module TopologicalInventory
 
     def save_vms_to_topological_inventory(topological_inventory_vms, source)
       # TODO(lsmola) if VM will have subcollections, this will need to send just partial data, otherwise all subcollections
-      # would get deleted. Alternative is having another endpoint than :vms, for doing update only operation.
+      # would get deleted. Alternative is having another endpoint than :vms, for doing update only operation. Partial data
+      # are not supported without timestamp for update (at least for now), since that is just being added to skeletal
+      # precreate.
       ingress_api_client.save_inventory(
         :inventory => TopologicalInventoryIngressApiClient::Inventory.new(
           :schema      => TopologicalInventoryIngressApiClient::Schema.new(:name => "Default"),
           :source      => source,
           :collections => [
-            TopologicalInventoryIngressApiClient::InventoryCollection.new(:name => :vms, :partial_data => topological_inventory_vms)
+            TopologicalInventoryIngressApiClient::InventoryCollection.new(:name => :vms, :data => topological_inventory_vms)
           ],
         )
       )
