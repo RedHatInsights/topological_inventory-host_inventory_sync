@@ -70,7 +70,7 @@ module TopologicalInventory
 
         data         = {
           :display_name  => host["name"],
-          :source_ref    => host["source_ref"],
+          :external_id   => host["source_ref"],
           :mac_addresses => host["mac_addresses"],
           :account       => account_number
         }
