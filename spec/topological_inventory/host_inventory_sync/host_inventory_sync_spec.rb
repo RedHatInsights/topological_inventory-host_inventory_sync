@@ -37,6 +37,32 @@ RSpec.describe TopologicalInventory::HostInventorySync do
     end
   end
 
+  context "#host_inventory_api (private)" do
+    it "returns the initial url if provided" do
+      expect(described_class.new("", "http://example.com/api/", "", 9092).send(:host_inventory_api)).to eq("http://example.com/api/")
+    end
+
+    context "with service env vars set" do
+      let(:url) { described_class.new("", nil, "", 9092).send(:host_inventory_api) }
+
+      before { stub_const("ENV", {"HOST_INVENTORY_API" => "http://example.com:8080"}) }
+
+      it "returns a sane value" do
+        expect(url).to eq("http://example.com:8080/inventory/api/v1")
+      end
+
+      it "uses the PATH_PREFIX with a leading slash" do
+        ENV["PATH_PREFIX"] = "/this/is/a/path"
+        expect(url).to eq("http://example.com:8080/this/is/a/path/inventory/api/v1")
+      end
+
+      it "uses the PATH_PREFIX without a leading slash" do
+        ENV["PATH_PREFIX"] = "also/a/path"
+        expect(url).to eq("http://example.com:8080/also/a/path/inventory/api/v1")
+      end
+    end
+  end
+
   context "#process_message" do
     let(:message) do
       OpenStruct.new(
