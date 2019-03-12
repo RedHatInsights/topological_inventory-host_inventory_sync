@@ -7,14 +7,16 @@ require "topological_inventory-ingress_api-client"
 
 module TopologicalInventory
   class HostInventorySync
+    TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
+
     include Logging
 
     attr_reader :source, :sns_topic
 
-    def initialize(topological_inventory_api, host_inventory_api, queue_host, queue_port)
+    def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port)
       self.queue_host                = queue_host
       self.queue_port                = queue_port
-      self.topological_inventory_api = topological_inventory_api
+      self.topological_inventory_api = build_topological_inventory_url(topological_inventory_url)
       self.host_inventory_api        = host_inventory_api
     end
 
@@ -155,7 +157,7 @@ module TopologicalInventory
       JSON.parse(
         RestClient::Request.execute(
           :method  => :get,
-          :url     => "#{topological_inventory_api}v0.1/vms/#{id}",
+          :url     => File.join(topological_inventory_api, "vms", id.to_s),
           :headers => {"x-rh-identity" => x_rh_identity}).body
       )
     rescue RestClient::NotFound
@@ -169,6 +171,19 @@ module TopologicalInventory
         :client_ref => "persister-worker",
         :group_ref  => "persister-worker",
       }
+    end
+
+    def build_topological_inventory_url(passed_url)
+      return passed_url if passed_url
+
+      path = File.join("/", ENV["PATH_PREFIX"].to_s, ENV["APP_NAME"].to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
+
+      require "uri"
+      URI::HTTP.build(
+        :host => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"],
+        :port => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"],
+        :path => path
+      ).to_s
     end
   end
 end
