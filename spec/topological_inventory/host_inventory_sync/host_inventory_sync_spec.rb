@@ -2,7 +2,6 @@ require "topological_inventory/host_inventory_sync"
 
 RSpec.describe TopologicalInventory::HostInventorySync do
   context "#topological_inventory_api (private)" do
-
     it "returns the initial url if provided" do
       expect(described_class.new("http://example.com/api/", "", "", 9092).send(:topological_inventory_api)).to eq("http://example.com/api/")
     end
@@ -10,14 +9,8 @@ RSpec.describe TopologicalInventory::HostInventorySync do
     context "with service env vars set" do
       let(:url) { described_class.new(nil, "", "", 9092).send(:topological_inventory_api) }
 
-      around do |e|
-        ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"] = "example.com"
-        ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"] = "8080"
-
-        e.run
-
-        ENV.delete("TOPOLOGICAL_INVENTORY_API_SERVICE_HOST")
-        ENV.delete("TOPOLOGICAL_INVENTORY_API_SERVICE_PORT")
+      before do
+        stub_const("ENV", {"TOPOLOGICAL_INVENTORY_API_SERVICE_HOST" => "example.com", "TOPOLOGICAL_INVENTORY_API_SERVICE_PORT" => "8080"})
       end
 
       it "returns a sane value" do
@@ -25,12 +18,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
       end
 
       context "with APP_NAME set" do
-        around do |e|
-          ENV["APP_NAME"] = "topological-inventory"
-          e.run
-          ENV.delete("APP_NAME")
-          ENV.delete("PATH_PREFIX")
-        end
+        before { ENV["APP_NAME"] = "topological-inventory" }
 
         it "includes the APP_NAME" do
           expect(url).to eq("http://example.com:8080/topological-inventory/v0.1")
@@ -45,6 +33,32 @@ RSpec.describe TopologicalInventory::HostInventorySync do
           ENV["PATH_PREFIX"] = "also/a/path"
           expect(url).to eq("http://example.com:8080/also/a/path/topological-inventory/v0.1")
         end
+      end
+    end
+  end
+
+  context "#host_inventory_api (private)" do
+    it "returns the initial url if provided" do
+      expect(described_class.new("", "http://example.com/api/", "", 9092).send(:host_inventory_api)).to eq("http://example.com/api/")
+    end
+
+    context "with service env vars set" do
+      let(:url) { described_class.new("", nil, "", 9092).send(:host_inventory_api) }
+
+      before { stub_const("ENV", {"HOST_INVENTORY_API" => "http://example.com:8080"}) }
+
+      it "returns a sane value" do
+        expect(url).to eq("http://example.com:8080/inventory/api/v1")
+      end
+
+      it "uses the PATH_PREFIX with a leading slash" do
+        ENV["PATH_PREFIX"] = "/this/is/a/path"
+        expect(url).to eq("http://example.com:8080/this/is/a/path/inventory/api/v1")
+      end
+
+      it "uses the PATH_PREFIX without a leading slash" do
+        ENV["PATH_PREFIX"] = "also/a/path"
+        expect(url).to eq("http://example.com:8080/also/a/path/inventory/api/v1")
       end
     end
   end

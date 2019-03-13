@@ -2,6 +2,7 @@ require "concurrent"
 require "json"
 require "manageiq-messaging"
 require 'rest_client'
+require "uri"
 require "topological_inventory/logging"
 require "topological_inventory-ingress_api-client"
 
@@ -16,8 +17,8 @@ module TopologicalInventory
     def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port)
       self.queue_host                = queue_host
       self.queue_port                = queue_port
-      self.topological_inventory_api = build_topological_inventory_url(topological_inventory_url)
-      self.host_inventory_api        = host_inventory_api
+      self.topological_inventory_api = topological_inventory_url || build_topological_inventory_url
+      self.host_inventory_api        = host_inventory_api || build_host_inventory_url
     end
 
     def run
@@ -124,7 +125,7 @@ module TopologicalInventory
       RestClient::Request.execute(
         :method  => :post,
         :payload => data.to_json,
-        :url     => "#{host_inventory_api}v1/hosts",
+        :url     => File.join(host_inventory_api, "hosts"),
         :headers => {"Content-Type" => "application/json", "x-rh-identity" => x_rh_identity}
       )
     end
@@ -132,7 +133,7 @@ module TopologicalInventory
     def get_host_inventory_hosts(x_rh_identity)
       RestClient::Request.execute(
         :method  => :get,
-        :url     => "#{host_inventory_api}v1/hosts",
+        :url     => File.join(host_inventory_api, "hosts"),
         :headers => {"x-rh-identity" => x_rh_identity}
       )
     end
@@ -173,17 +174,22 @@ module TopologicalInventory
       }
     end
 
-    def build_topological_inventory_url(passed_url)
-      return passed_url if passed_url
-
+    def build_topological_inventory_url
       path = File.join("/", ENV["PATH_PREFIX"].to_s, ENV["APP_NAME"].to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
 
-      require "uri"
       URI::HTTP.build(
         :host => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"],
         :port => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"],
         :path => path
       ).to_s
+    end
+
+    def build_host_inventory_url
+      path = File.join("/", ENV["PATH_PREFIX"].to_s, "inventory", "api", "v1")
+
+      u = URI(ENV["HOST_INVENTORY_API"])
+      u.path = path
+      u.to_s
     end
   end
 end

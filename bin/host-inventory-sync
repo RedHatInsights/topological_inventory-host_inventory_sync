@@ -14,7 +14,7 @@ def parse_args
     opt :queue_host, "Hostname of the Platform's kafka queue", :type => :string, :required => ENV["QUEUE_HOST"].nil?, :default => ENV["QUEUE_HOST"]
     opt :queue_port, "Port of the Platform's kafka queue", :type => :int, :required => false, :default => (ENV["QUEUE_PORT"] || 9092).to_i
     opt :topological_inventory_api, "Topological Inventory service URL", :type => :string, :required => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"].nil?
-    opt :host_inventory_api, "Host inventory service URL", :type => :string, :required => ENV["HOST_INVENTORY_API"].nil?, :default => ENV["HOST_INVENTORY_API"]
+    opt :host_inventory_api, "Host inventory service URL", :type => :string, :required => ENV["HOST_INVENTORY_API"].nil?
     opt :ingress_api, "Ingress API service URL", :type => :string, :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"].nil?
   end
 
