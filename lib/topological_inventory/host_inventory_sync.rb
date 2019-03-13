@@ -39,6 +39,34 @@ module TopologicalInventory
       end
     end
 
+    class << self
+      TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
+      def build_topological_inventory_ingress_url(host, port)
+        URI::HTTP.build(
+          :host => host,
+          :port => port
+        )
+      end
+
+      def build_topological_inventory_url(host, port, path_prefix, app_name)
+        path = File.join("/", path_prefix.to_s, app_name.to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
+
+        URI::HTTP.build(
+          :host => host,
+          :port => port,
+          :path => path
+        ).to_s
+      end
+
+      def build_host_inventory_url(host, path_prefix)
+        path = File.join("/", path_prefix.to_s, "inventory", "api", "v1")
+
+        u = URI(host)
+        u.path = path
+        u.to_s
+      end
+    end
+
     private
 
     attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api, :host_inventory_api

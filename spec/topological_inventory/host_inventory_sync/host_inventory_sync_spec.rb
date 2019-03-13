@@ -3,35 +3,33 @@ require "topological_inventory/host_inventory_sync"
 RSpec.describe TopologicalInventory::HostInventorySync do
   context "#topological_inventory_api (private)" do
     it "returns the initial url if provided" do
-      expect(described_class.new("http://example.com/api/", "", "", 9092).send(:topological_inventory_api)).to eq("http://example.com/api/")
+      expect(described_class.send(:build_topological_inventory_url, "example.com", 9092, "", "")).to eq("http://example.com:9092/v0.1")
     end
 
     context "with service env vars set" do
-      let(:url) { described_class.new(nil, "", "", 9092).send(:topological_inventory_api) }
-
-      before do
-        stub_const("ENV", {"TOPOLOGICAL_INVENTORY_API_SERVICE_HOST" => "example.com", "TOPOLOGICAL_INVENTORY_API_SERVICE_PORT" => "8080"})
-      end
-
       it "returns a sane value" do
-        expect(url).to eq("http://example.com:8080/v0.1")
+        expect(
+          described_class.send(:build_topological_inventory_url, "example.com", "8080", "", "")
+        ).to eq("http://example.com:8080/v0.1")
       end
 
       context "with APP_NAME set" do
-        before { ENV["APP_NAME"] = "topological-inventory" }
-
         it "includes the APP_NAME" do
-          expect(url).to eq("http://example.com:8080/topological-inventory/v0.1")
+          expect(
+            described_class.send(:build_topological_inventory_url, "example.com", "8080", "", "topological-inventory")
+          ).to eq("http://example.com:8080/topological-inventory/v0.1")
         end
 
         it "uses the PATH_PREFIX with a leading slash" do
-          ENV["PATH_PREFIX"] = "/this/is/a/path"
-          expect(url).to eq("http://example.com:8080/this/is/a/path/topological-inventory/v0.1")
+          expect(
+            described_class.send(:build_topological_inventory_url, "example.com", "8080", "/this/is/a/path", "topological-inventory")
+          ).to eq("http://example.com:8080/this/is/a/path/topological-inventory/v0.1")
         end
 
         it "uses the PATH_PREFIX without a leading slash" do
-          ENV["PATH_PREFIX"] = "also/a/path"
-          expect(url).to eq("http://example.com:8080/also/a/path/topological-inventory/v0.1")
+          expect(
+            described_class.send(:build_topological_inventory_url, "example.com", "8080", "also/a/path", "topological-inventory")
+          ).to eq("http://example.com:8080/also/a/path/topological-inventory/v0.1")
         end
       end
     end
@@ -39,26 +37,28 @@ RSpec.describe TopologicalInventory::HostInventorySync do
 
   context "#host_inventory_api (private)" do
     it "returns the initial url if provided" do
-      expect(described_class.new("", "http://example.com/api/", "", 9092).send(:host_inventory_api)).to eq("http://example.com/api/")
+      expect(
+        described_class.send(:build_host_inventory_url, "http://example.com/api/", "")
+      ).to eq("http://example.com/inventory/api/v1")
     end
 
     context "with service env vars set" do
-      let(:url) { described_class.new("", nil, "", 9092).send(:host_inventory_api) }
-
-      before { stub_const("ENV", {"HOST_INVENTORY_API" => "http://example.com:8080"}) }
-
       it "returns a sane value" do
-        expect(url).to eq("http://example.com:8080/inventory/api/v1")
+        expect(
+          described_class.send(:build_host_inventory_url, "http://example.com:8080", "")
+        ).to eq("http://example.com:8080/inventory/api/v1")
       end
 
       it "uses the PATH_PREFIX with a leading slash" do
-        ENV["PATH_PREFIX"] = "/this/is/a/path"
-        expect(url).to eq("http://example.com:8080/this/is/a/path/inventory/api/v1")
+        expect(
+          described_class.send(:build_host_inventory_url, "http://example.com:8080", "/this/is/a/path")
+        ).to eq("http://example.com:8080/this/is/a/path/inventory/api/v1")
       end
 
       it "uses the PATH_PREFIX without a leading slash" do
-        ENV["PATH_PREFIX"] = "also/a/path"
-        expect(url).to eq("http://example.com:8080/also/a/path/inventory/api/v1")
+        expect(
+          described_class.send(:build_host_inventory_url, "http://example.com:8080", "also/a/path")
+        ).to eq("http://example.com:8080/also/a/path/inventory/api/v1")
       end
     end
   end
@@ -117,7 +117,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
         receive(:create_host_inventory_hosts)
           .with(*make_host_arg(mac_addresses_1, "vm1"))
           .and_return(
-            mock_body({"id" => "host_uuid_1"})
+            mock_body({"data" => [{"host" => {"id" => "host_uuid_1"}}]})
           )
       )
 
@@ -125,7 +125,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
         receive(:create_host_inventory_hosts)
           .with(*make_host_arg(mac_addresses_2, "vm2"))
           .and_return(
-            mock_body({"id" => "host_uuid_2"})
+            mock_body({"data" => [{"host" => {"id" => "host_uuid_2"}}]})
           )
       )
 
@@ -133,7 +133,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
         receive(:create_host_inventory_hosts)
           .with(*make_host_arg(mac_addresses_3, "vm3"))
           .and_return(
-            mock_body({"id" => "host_uuid_3"})
+            mock_body({"data" => [{"host" => {"id" => "host_uuid_3"}}]})
           )
       )
 
@@ -141,7 +141,7 @@ RSpec.describe TopologicalInventory::HostInventorySync do
         receive(:create_host_inventory_hosts)
           .with(*make_host_arg([], "vm4"))
           .and_return(
-            mock_body({"id" => "host_uuid_4"})
+            mock_body({"data" => [{"host" => {"id" => "host_uuid_4"}}]})
           )
       )
 

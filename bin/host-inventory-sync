@@ -31,6 +31,12 @@ def parse_args
     opt :topological_inventory_ingress_api_service_port, "Ingress API service URL port", :type => :string,
         :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"].nil?,
         :default => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"]
+    opt :path_prefix, "Path prefix e.g. 'r/insights/platform'", :type => :string,
+        :required => ENV["PATH_PREFIX"].nil?,
+        :default => ENV["PATH_PREFIX"]
+    opt :app_name, "App name e.g. 'topological-inventory'", :type => :string,
+        :required => ENV["APP_NAME"].nil?,
+        :default => ENV["APP_NAME"]
   end
 
   opts
@@ -38,38 +44,23 @@ end
 
 args = parse_args
 
-def build_topological_inventory_ingress_url
-  URI::HTTP.build(
-    :host => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"],
-    :port => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"]
-  )
-end
+ingress_api_uri = TopologicalInventory::HostInventorySync.build_topological_inventory_ingress_url(
+    args[:topological_inventory_ingress_api_service_host], args[:topological_inventory_ingress_api_service_port]
+)
+topological_inventory_url = TopologicalInventory::HostInventorySync.build_topological_inventory_url(
+  args[:topological_inventory_api_service_host], args[:topological_inventory_api_service_port],
+  args[:path_prefix], args[:app_name]
+)
 
-TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
-def build_topological_inventory_url
-  path = File.join("/", ENV["PATH_PREFIX"].to_s, ENV["APP_NAME"].to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
+host_inventory_url = TopologicalInventory::HostInventorySync.build_host_inventory_url(
+  args[:host_inventory_api], args[:path_prefix]
+)
 
-  URI::HTTP.build(
-    :host => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"],
-    :port => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"],
-    :path => path
-  ).to_s
-end
-
-def build_host_inventory_url
-  path = File.join("/", ENV["PATH_PREFIX"].to_s, "inventory", "api", "v1")
-
-  u = URI(ENV["HOST_INVENTORY_API"])
-  u.path = path
-  u.to_s
-end
-
-ingress_api_uri = build_topological_inventory_ingress_url
 TopologicalInventoryIngressApiClient.configure.scheme = ingress_api_uri.scheme || "http"
 TopologicalInventoryIngressApiClient.configure.host   = "#{ingress_api_uri.host}:#{ingress_api_uri.port}"
 
 host_inventory_sync = TopologicalInventory::HostInventorySync.new(
-  build_topological_inventory_url, build_host_inventory_url, args[:queue_host], args[:queue_port]
+  topological_inventory_url, host_inventory_url, args[:queue_host], args[:queue_port]
 )
 
 host_inventory_sync.run
