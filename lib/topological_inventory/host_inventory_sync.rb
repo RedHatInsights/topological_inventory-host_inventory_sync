@@ -8,8 +8,6 @@ require "topological_inventory-ingress_api-client"
 
 module TopologicalInventory
   class HostInventorySync
-    TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
-
     include Logging
 
     attr_reader :source, :sns_topic
@@ -17,8 +15,8 @@ module TopologicalInventory
     def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port)
       self.queue_host                = queue_host
       self.queue_port                = queue_port
-      self.topological_inventory_api = topological_inventory_url || build_topological_inventory_url
-      self.host_inventory_api        = host_inventory_api || build_host_inventory_url
+      self.topological_inventory_api = topological_inventory_url
+      self.host_inventory_api        = host_inventory_api
     end
 
     def run
@@ -38,6 +36,34 @@ module TopologicalInventory
         end
       ensure
         client&.close
+      end
+    end
+
+    class << self
+      TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
+      def build_topological_inventory_ingress_url(host, port)
+        URI::HTTP.build(
+          :host => host,
+          :port => port
+        )
+      end
+
+      def build_topological_inventory_url(host, port, path_prefix, app_name)
+        path = File.join("/", path_prefix.to_s, app_name.to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
+
+        URI::HTTP.build(
+          :host => host,
+          :port => port,
+          :path => path
+        ).to_s
+      end
+
+      def build_host_inventory_url(host, path_prefix)
+        path = File.join("/", path_prefix.to_s, "inventory", "api", "v1")
+
+        u = URI(host)
+        u.path = path
+        u.to_s
       end
     end
 
@@ -62,6 +88,7 @@ module TopologicalInventory
       logger.info("#{vms.size} VMs found for account_number: #{account_number} and source: #{source}.")
 
       logger.info("Fetching #{vms.size} Topological Inventory VMs from API.")
+
       topological_inventory_vms = get_topological_inventory_vms(vms, x_rh_identity)
       logger.info("Fetched #{topological_inventory_vms.size} Topological Inventory VMs from API.")
 
@@ -77,11 +104,13 @@ module TopologicalInventory
           :mac_addresses => host["mac_addresses"],
           :account       => account_number
         }
+
+        # TODO(lsmola) use the possibility to create batch of VMs in Host Inventory
         created_host = JSON.parse(create_host_inventory_hosts(x_rh_identity, data).body)
 
         updated_topological_inventory_vms << TopologicalInventoryIngressApiClient::Vm.new(
           :source_ref          => host["source_ref"],
-          :host_inventory_uuid => created_host["id"],
+          :host_inventory_uuid => created_host["data"].first["host"]["id"],
         )
       end
 
@@ -124,7 +153,7 @@ module TopologicalInventory
     def create_host_inventory_hosts(x_rh_identity, data)
       RestClient::Request.execute(
         :method  => :post,
-        :payload => data.to_json,
+        :payload => [data].to_json,
         :url     => File.join(host_inventory_api, "hosts"),
         :headers => {"Content-Type" => "application/json", "x-rh-identity" => x_rh_identity}
       )
@@ -172,24 +201,6 @@ module TopologicalInventory
         :client_ref => "persister-worker",
         :group_ref  => "persister-worker",
       }
-    end
-
-    def build_topological_inventory_url
-      path = File.join("/", ENV["PATH_PREFIX"].to_s, ENV["APP_NAME"].to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
-
-      URI::HTTP.build(
-        :host => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"],
-        :port => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"],
-        :path => path
-      ).to_s
-    end
-
-    def build_host_inventory_url
-      path = File.join("/", ENV["PATH_PREFIX"].to_s, "inventory", "api", "v1")
-
-      u = URI(ENV["HOST_INVENTORY_API"])
-      u.path = path
-      u.to_s
     end
   end
 end

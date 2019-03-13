@@ -7,15 +7,36 @@ STDOUT.sync = true
 
 require "bundler/setup"
 require "topological_inventory/host_inventory_sync"
+require 'uri'
 
 def parse_args
   require 'optimist'
   opts = Optimist.options do
-    opt :queue_host, "Hostname of the Platform's kafka queue", :type => :string, :required => ENV["QUEUE_HOST"].nil?, :default => ENV["QUEUE_HOST"]
-    opt :queue_port, "Port of the Platform's kafka queue", :type => :int, :required => false, :default => (ENV["QUEUE_PORT"] || 9092).to_i
-    opt :topological_inventory_api, "Topological Inventory service URL", :type => :string, :required => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"].nil?
-    opt :host_inventory_api, "Host inventory service URL", :type => :string, :required => ENV["HOST_INVENTORY_API"].nil?
-    opt :ingress_api, "Ingress API service URL", :type => :string, :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"].nil?
+    opt :queue_host, "Hostname of the Platform's kafka queue", :type => :string, :required => ENV["QUEUE_HOST"].nil?,
+        :default => ENV["QUEUE_HOST"]
+    opt :queue_port, "Port of the Platform's kafka queue", :type => :int, :required => false,
+        :default => (ENV["QUEUE_PORT"] || 9092).to_i
+    opt :topological_inventory_api_service_host, "Topological Inventory service URL", :type => :string,
+        :required => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"].nil?,
+        :default => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_HOST"]
+    opt :topological_inventory_api_service_port, "Topological Inventory service URL port", :type => :string,
+        :required => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"].nil?,
+        :default => ENV["TOPOLOGICAL_INVENTORY_API_SERVICE_PORT"]
+    opt :host_inventory_api, "Host inventory service URL", :type => :string,
+        :required => ENV["HOST_INVENTORY_API"].nil?,
+        :default => ENV["HOST_INVENTORY_API"]
+    opt :topological_inventory_ingress_api_service_host, "Ingress API service URL", :type => :string,
+        :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"].nil?,
+        :default => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"]
+    opt :topological_inventory_ingress_api_service_port, "Ingress API service URL port", :type => :string,
+        :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"].nil?,
+        :default => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"]
+    opt :path_prefix, "Path prefix e.g. 'r/insights/platform'", :type => :string,
+        :required => ENV["PATH_PREFIX"].nil?,
+        :default => ENV["PATH_PREFIX"]
+    opt :app_name, "App name e.g. 'topological-inventory'", :type => :string,
+        :required => ENV["APP_NAME"].nil?,
+        :default => ENV["APP_NAME"]
   end
 
   opts
@@ -23,18 +44,23 @@ end
 
 args = parse_args
 
-ingress_api_uri = if args[:ingress_api]
-                    URI(args[:ingress_api])
-                  else
-                    require 'uri'
-                    URI::HTTP.build(:host => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_HOST"], :port => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"])
-                  end
+ingress_api_uri = TopologicalInventory::HostInventorySync.build_topological_inventory_ingress_url(
+    args[:topological_inventory_ingress_api_service_host], args[:topological_inventory_ingress_api_service_port]
+)
+topological_inventory_url = TopologicalInventory::HostInventorySync.build_topological_inventory_url(
+  args[:topological_inventory_api_service_host], args[:topological_inventory_api_service_port],
+  args[:path_prefix], args[:app_name]
+)
+
+host_inventory_url = TopologicalInventory::HostInventorySync.build_host_inventory_url(
+  args[:host_inventory_api], args[:path_prefix]
+)
 
 TopologicalInventoryIngressApiClient.configure.scheme = ingress_api_uri.scheme || "http"
 TopologicalInventoryIngressApiClient.configure.host   = "#{ingress_api_uri.host}:#{ingress_api_uri.port}"
 
 host_inventory_sync = TopologicalInventory::HostInventorySync.new(
-  args[:topological_inventory_api], args[:host_inventory_api], args[:queue_host], args[:queue_port]
+  topological_inventory_url, host_inventory_url, args[:queue_host], args[:queue_port]
 )
 
 host_inventory_sync.run
