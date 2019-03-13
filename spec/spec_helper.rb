@@ -3,7 +3,6 @@ if ENV['CI']
   SimpleCov.start
 end
 
-# For defining kubernetes entities in specs
 require "rspec"
 require "webmock/rspec"
 require "topological_inventory/host_inventory_sync"
