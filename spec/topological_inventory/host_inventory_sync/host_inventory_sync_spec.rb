@@ -39,26 +39,26 @@ RSpec.describe TopologicalInventory::HostInventorySync do
     it "returns the initial url if provided" do
       expect(
         described_class.send(:build_host_inventory_url, "http://example.com/api/", "")
-      ).to eq("http://example.com/inventory/api/v1")
+      ).to eq("http://example.com/inventory/v1")
     end
 
     context "with service env vars set" do
       it "returns a sane value" do
         expect(
           described_class.send(:build_host_inventory_url, "http://example.com:8080", "")
-        ).to eq("http://example.com:8080/inventory/api/v1")
+        ).to eq("http://example.com:8080/inventory/v1")
       end
 
       it "uses the PATH_PREFIX with a leading slash" do
         expect(
           described_class.send(:build_host_inventory_url, "http://example.com:8080", "/this/is/a/path")
-        ).to eq("http://example.com:8080/this/is/a/path/inventory/api/v1")
+        ).to eq("http://example.com:8080/this/is/a/path/inventory/v1")
       end
 
       it "uses the PATH_PREFIX without a leading slash" do
         expect(
           described_class.send(:build_host_inventory_url, "http://example.com:8080", "also/a/path")
-        ).to eq("http://example.com:8080/also/a/path/inventory/api/v1")
+        ).to eq("http://example.com:8080/also/a/path/inventory/v1")
       end
     end
   end
