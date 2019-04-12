@@ -59,7 +59,7 @@ module TopologicalInventory
       end
 
       def build_host_inventory_url(host, path_prefix)
-        path = File.join("/", path_prefix.to_s, "inventory", "api", "v1")
+        path = File.join("/", path_prefix.to_s, "inventory", "v1")
 
         u = URI(host)
         u.path = path
