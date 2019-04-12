@@ -31,7 +31,7 @@ def parse_args
     opt :topological_inventory_ingress_api_service_port, "Ingress API service URL port", :type => :string,
         :required => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"].nil?,
         :default => ENV["TOPOLOGICAL_INVENTORY_INGRESS_API_SERVICE_PORT"]
-    opt :path_prefix, "Path prefix e.g. 'r/insights/platform'", :type => :string,
+    opt :path_prefix, "Path prefix e.g. 'api'", :type => :string,
         :required => ENV["PATH_PREFIX"].nil?,
         :default => ENV["PATH_PREFIX"]
     opt :app_name, "App name e.g. 'topological-inventory'", :type => :string,
