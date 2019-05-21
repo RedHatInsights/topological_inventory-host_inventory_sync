@@ -9,6 +9,7 @@ gem "manageiq-loggers", "~> 0.1.0"
 gem "manageiq-messaging"
 gem "more_core_extensions"
 gem "optimist"
+gem "prometheus_exporter", "~> 0.4.5"
 gem "rest-client", ">= 1.8.0"
 
 gem "topological_inventory-ingress_api-client", :git => "https://github.com/ManageIQ/topological_inventory-ingress_api-client-ruby", :branch => "master"

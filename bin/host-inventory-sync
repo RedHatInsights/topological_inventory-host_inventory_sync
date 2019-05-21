@@ -37,6 +37,9 @@ def parse_args
     opt :app_name, "App name e.g. 'topological-inventory'", :type => :string,
         :required => ENV["APP_NAME"].nil?,
         :default => ENV["APP_NAME"]
+    opt :metrics_port, "Port to expose the metrics endpoint on, 0 to disable metrics", :type => :integer,
+        :required => false,
+        :default => 9394
   end
 
   opts
@@ -60,7 +63,7 @@ TopologicalInventoryIngressApiClient.configure.scheme = ingress_api_uri.scheme |
 TopologicalInventoryIngressApiClient.configure.host   = "#{ingress_api_uri.host}:#{ingress_api_uri.port}"
 
 host_inventory_sync = TopologicalInventory::HostInventorySync.new(
-  topological_inventory_url, host_inventory_url, args[:queue_host], args[:queue_port]
+  topological_inventory_url, host_inventory_url, args[:queue_host], args[:queue_port], args[:metrics_port]
 )
 
 host_inventory_sync.run
