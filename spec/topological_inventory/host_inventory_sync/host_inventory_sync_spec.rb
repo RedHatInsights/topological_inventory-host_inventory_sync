@@ -85,15 +85,13 @@ RSpec.describe TopologicalInventory::HostInventorySync do
 
     let(:host_inventory_sync) do
       TopologicalInventory::HostInventorySync.new(
-        "http://mock/api/", "http://mock/api/", "localhost", 9092, 9394)
+        "http://mock/api/", "http://mock/api/", "localhost", 9092, 0)
     end
 
     let(:mac_addresses_1) { ["06:d5:e7:4e:c8:01", "06:d5:e7:4e:c7:01"] }
     let(:mac_addresses_2) { ["06:d5:e7:4e:c8:02"] }
     let(:mac_addresses_3) { ["06:d5:e7:4e:c8:03"] }
     let(:mac_addresses_5) { ["06:d5:e7:4e:c8:04"] }
-
-    after { host_inventory_sync.send(:metrics).stop_server }
 
     it "sends new hosts for create" do
       host_inventory_sync_service = host_inventory_sync
