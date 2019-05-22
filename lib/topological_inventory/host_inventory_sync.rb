@@ -4,6 +4,7 @@ require "manageiq-messaging"
 require 'rest_client'
 require "uri"
 require "topological_inventory/logging"
+require "topological_inventory/application_metrics"
 require "topological_inventory-ingress_api-client"
 
 module TopologicalInventory
@@ -12,11 +13,12 @@ module TopologicalInventory
 
     attr_reader :source, :sns_topic
 
-    def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port)
+    def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port, metrics_port)
       self.queue_host                = queue_host
       self.queue_port                = queue_port
       self.topological_inventory_api = topological_inventory_url
       self.host_inventory_api        = host_inventory_api
+      self.metrics                   = TopologicalInventory::HostInventorySync::ApplicationMetrics.new(metrics_port)
     end
 
     def run
@@ -36,6 +38,7 @@ module TopologicalInventory
         end
       ensure
         client&.close
+        metrics.stop_server
       end
     end
 
@@ -69,7 +72,7 @@ module TopologicalInventory
 
     private
 
-    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api, :host_inventory_api
+    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api, :host_inventory_api, :metrics
 
     def process_message(message)
       payload        = message.payload
