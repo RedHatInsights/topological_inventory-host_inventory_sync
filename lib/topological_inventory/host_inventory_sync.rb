@@ -43,7 +43,7 @@ module TopologicalInventory
     end
 
     class << self
-      TOPOLOGICAL_INVENTORY_API_VERSION = "v0.1".freeze
+      TOPOLOGICAL_INVENTORY_API_VERSION = "v1.0".freeze
       def build_topological_inventory_ingress_url(host, port)
         URI::HTTP.build(
           :host => host,
