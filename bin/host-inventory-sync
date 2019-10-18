@@ -50,7 +50,7 @@ args = parse_args
 ingress_api_uri = TopologicalInventory::HostInventorySync.build_topological_inventory_ingress_url(
     args[:topological_inventory_ingress_api_service_host], args[:topological_inventory_ingress_api_service_port]
 )
-topological_inventory_url = TopologicalInventory::HostInventorySync.build_topological_inventory_url(
+topological_inventory_url = TopologicalInventory::HostInventorySync.build_topological_inventory_url_hash(
   args[:topological_inventory_api_service_host], args[:topological_inventory_api_service_port],
   args[:path_prefix], args[:app_name]
 )

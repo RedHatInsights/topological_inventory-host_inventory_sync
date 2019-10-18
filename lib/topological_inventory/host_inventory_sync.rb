@@ -13,12 +13,12 @@ module TopologicalInventory
 
     attr_reader :source, :sns_topic
 
-    def initialize(topological_inventory_url, host_inventory_api, queue_host, queue_port, metrics_port)
-      self.queue_host                = queue_host
-      self.queue_port                = queue_port
-      self.topological_inventory_api = topological_inventory_url
-      self.host_inventory_api        = host_inventory_api
-      self.metrics                   = TopologicalInventory::HostInventorySync::ApplicationMetrics.new(metrics_port)
+    def initialize(topological_inventory_api_params_hash, host_inventory_api, queue_host, queue_port, metrics_port)
+      self.queue_host                            = queue_host
+      self.queue_port                            = queue_port
+      self.topological_inventory_api_params_hash = topological_inventory_api_params_hash
+      self.host_inventory_api                    = host_inventory_api
+      self.metrics                               = TopologicalInventory::HostInventorySync::ApplicationMetrics.new(metrics_port)
     end
 
     def run
@@ -42,6 +42,11 @@ module TopologicalInventory
       end
     end
 
+    def build_topological_inventory_url_from(additional_params)
+      additional_params[:path] = File.join(topological_inventory_api_params_hash[:path], additional_params[:path]) if additional_params[:path]
+      URI::HTTP.build(topological_inventory_api_params_hash.merge(additional_params)).to_s
+    end
+
     class << self
       TOPOLOGICAL_INVENTORY_API_VERSION = "v1.0".freeze
       def build_topological_inventory_ingress_url(host, port)
@@ -51,14 +56,9 @@ module TopologicalInventory
         )
       end
 
-      def build_topological_inventory_url(host, port, path_prefix, app_name)
+      def build_topological_inventory_url_hash(host, port, path_prefix, app_name)
         path = File.join("/", path_prefix.to_s, app_name.to_s, TOPOLOGICAL_INVENTORY_API_VERSION)
-
-        URI::HTTP.build(
-          :host => host,
-          :port => port,
-          :path => path
-        ).to_s
+        {:host => host, :port => port, :path => path}
       end
 
       def build_host_inventory_url(host, path_prefix)
@@ -72,7 +72,7 @@ module TopologicalInventory
 
     private
 
-    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api, :host_inventory_api, :metrics
+    attr_accessor :log, :queue_host, :queue_port, :topological_inventory_api_params_hash, :host_inventory_api, :metrics
 
     def process_message(message)
       payload        = message.payload
@@ -180,22 +180,17 @@ module TopologicalInventory
     end
 
     def get_topological_inventory_vms(vms, x_rh_identity)
-      # TODO(lsmola) replace with batch filtering once Topological Inventory implements that
-      vms.map do |id|
-        get_topological_inventory_vm(x_rh_identity, id)
-      end.compact
-    end
+      return [] if vms.empty?
 
-    def get_topological_inventory_vm(x_rh_identity, id)
-      JSON.parse(
-        RestClient::Request.execute(
-          :method  => :get,
-          :url     => File.join(topological_inventory_api, "vms", id.to_s),
-          :headers => {"x-rh-identity" => x_rh_identity}).body
-      )
-    rescue RestClient::NotFound
-      logger.info("Vm #{id} was not found in Topological Inventory")
-      nil
+      uri = build_topological_inventory_url_from(:path => 'vms', :query => {:filter => { :id => vms} }.to_query)
+      found_vms = JSON.parse(RestClient::Request.execute(:method => :get, :url => uri.to_s, :headers => {"x-rh-identity" => x_rh_identity}).body)['data']
+
+      missing_vms_ids = vms - found_vms.map { |x| x['id'].to_i }
+      if missing_vms_ids.present?
+        logger.info("Vms #{missing_vms_ids.inspect} were not found in Topological Inventory")
+      end
+
+      found_vms
     end
 
     def default_messaging_opts
