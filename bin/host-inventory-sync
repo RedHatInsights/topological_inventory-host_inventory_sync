@@ -39,7 +39,7 @@ def parse_args
         :default => ENV["APP_NAME"]
     opt :metrics_port, "Port to expose the metrics endpoint on, 0 to disable metrics", :type => :integer,
         :required => false,
-        :default => 9394
+        :default => (ENV["METRICS_PORT"] || 9394).to_i
   end
 
   opts
