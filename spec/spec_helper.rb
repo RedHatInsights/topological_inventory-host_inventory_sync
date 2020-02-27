@@ -5,6 +5,7 @@ end
 
 require "rspec"
 require "webmock/rspec"
+require "timecop"
 require "topological_inventory/host_inventory_sync"
 
 RSpec.configure do |config|
