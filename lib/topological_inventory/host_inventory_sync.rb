@@ -11,6 +11,9 @@ module TopologicalInventory
   class HostInventorySync
     include Logging
 
+    HOST_INVENTORY_REPORTER = "topological-inventory".freeze
+    STALE_TIMESTAMP_OFFSET  = 86400 # 1 day from now (seconds)
+
     attr_reader :source, :sns_topic
 
     def initialize(topological_inventory_api_params_hash, host_inventory_api, queue_host, queue_port, metrics_port)
@@ -96,16 +99,21 @@ module TopologicalInventory
       logger.info("Fetched #{topological_inventory_vms.size} Topological Inventory VMs from API.")
 
       logger.info("Syncing #{topological_inventory_vms.size} Topological Inventory VMs with Host Inventory")
+
+      stale_timestamp = Time.now.utc + STALE_TIMESTAMP_OFFSET
+
       updated_topological_inventory_vms = []
       topological_inventory_vms.each do |host|
         # Skip processing if we've already created this host in Host Based
         next if !host["host_inventory_uuid"].nil? && !host["host_inventory_uuid"].empty?
 
         data         = {
-          :display_name  => host["name"],
-          :external_id   => host["source_ref"],
-          :mac_addresses => host["mac_addresses"],
-          :account       => account_number
+          :display_name    => host["name"],
+          :external_id     => host["source_ref"],
+          :mac_addresses   => host["mac_addresses"],
+          :account         => account_number,
+          :reporter        => HOST_INVENTORY_REPORTER,
+          :stale_timestamp => stale_timestamp
         }
 
         # TODO(lsmola) use the possibility to create batch of VMs in Host Inventory

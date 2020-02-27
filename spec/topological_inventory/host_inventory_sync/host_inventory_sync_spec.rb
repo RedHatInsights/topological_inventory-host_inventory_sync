@@ -66,6 +66,8 @@ RSpec.describe TopologicalInventory::HostInventorySync do
   end
 
   context "#process_message" do
+    around { |spec| Timecop.freeze { spec.run } }
+
     let(:message) do
       OpenStruct.new(
         :payload => {
@@ -203,10 +205,12 @@ RSpec.describe TopologicalInventory::HostInventorySync do
     [
       "eyJpZGVudGl0eSI6eyJhY2NvdW50X251bWJlciI6ImV4dGVybmFsX3RlbmFu\ndF91dWlkIn19\n",
       {
-        :mac_addresses => mac_addresses,
-        :account       => account_number,
-        :external_id   => source_ref,
-        :display_name  => nil
+        :mac_addresses   => mac_addresses,
+        :account         => account_number,
+        :external_id     => source_ref,
+        :display_name    => nil,
+        :reporter        => "topological-inventory",
+        :stale_timestamp => Time.now.utc + 86400
       }
     ]
   end
