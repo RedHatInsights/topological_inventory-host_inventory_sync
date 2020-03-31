@@ -5,33 +5,33 @@ RSpec.describe TopologicalInventory::HostInventorySync do
     it "returns the initial url if provided" do
       params_hash = described_class.send(:build_topological_inventory_url_hash, "example.com", "9092", "", "")
       host_sync_object = described_class.new(params_hash, "", "", "", 0)
-      expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:9092/v1.0")
+      expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:9092/v3.0")
     end
 
     context "with service env vars set" do
       it "returns a sane value" do
         params_hash = described_class.send(:build_topological_inventory_url_hash, "example.com", "8080", "", "")
         host_sync_object = described_class.new(params_hash, "", "", "", 0)
-        expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/v1.0")
+        expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/v3.0")
       end
 
       context "with APP_NAME set" do
         it "includes the APP_NAME" do
           params_hash = described_class.send(:build_topological_inventory_url_hash, "example.com", "8080", "", "topological-inventory")
           host_sync_object = described_class.new(params_hash, "", "", "", 0)
-          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/topological-inventory/v1.0")
+          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/topological-inventory/v3.0")
         end
 
         it "uses the PATH_PREFIX with a leading slash" do
           params_hash = described_class.send(:build_topological_inventory_url_hash, "example.com", "8080", "/this/is/a/path", "topological-inventory")
           host_sync_object = described_class.new(params_hash, "", "", "", 0)
-          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/this/is/a/path/topological-inventory/v1.0")
+          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/this/is/a/path/topological-inventory/v3.0")
         end
 
         it "uses the PATH_PREFIX without a leading slash" do
           params_hash = described_class.send(:build_topological_inventory_url_hash, "example.com", "8080", "also/a/path", "topological-inventory")
           host_sync_object = described_class.new(params_hash, "", "", "", 0)
-          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/also/a/path/topological-inventory/v1.0")
+          expect(host_sync_object.send(:build_topological_inventory_url_from, {})).to eq("http://example.com:8080/also/a/path/topological-inventory/v3.0")
         end
       end
     end
