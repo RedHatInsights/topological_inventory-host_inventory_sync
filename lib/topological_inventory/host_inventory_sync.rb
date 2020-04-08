@@ -6,6 +6,7 @@ require "uri"
 require "topological_inventory/logging"
 require "topological_inventory/application_metrics"
 require "topological_inventory-ingress_api-client"
+require "topological_inventory/providers/common/save_inventory/saver"
 
 module TopologicalInventory
   class HostInventorySync
@@ -51,7 +52,7 @@ module TopologicalInventory
     end
 
     class << self
-      TOPOLOGICAL_INVENTORY_API_VERSION = "v1.0".freeze
+      TOPOLOGICAL_INVENTORY_API_VERSION = "v3.0".freeze
       def build_topological_inventory_ingress_url(host, port)
         URI::HTTP.build(
           :host => host,
@@ -137,8 +138,7 @@ module TopologicalInventory
       save_vms_to_topological_inventory(updated_topological_inventory_vms, source)
       logger.info("Updated Topological Inventory with #{updated_topological_inventory_vms.size} VMs.")
     rescue => e
-      logger.error(e.message)
-      logger.error(e.backtrace.join("\n"))
+      logger.error("#{e.message} -  #{e.backtrace.join("\n")}")
     end
 
     def save_vms_to_topological_inventory(topological_inventory_vms, source)
@@ -146,13 +146,14 @@ module TopologicalInventory
       # would get deleted. Alternative is having another endpoint than :vms, for doing update only operation. Partial data
       # are not supported without timestamp for update (at least for now), since that is just being added to skeletal
       # precreate.
-      ingress_api_client.save_inventory(
+      TopologicalInventory::Providers::Common::SaveInventory::Saver.new(:client => ingress_api_client, :logger => logger).save(
         :inventory => TopologicalInventoryIngressApiClient::Inventory.new(
           :schema      => TopologicalInventoryIngressApiClient::Schema.new(:name => "Default"),
           :source      => source,
           :collections => [
             TopologicalInventoryIngressApiClient::InventoryCollection.new(:name => :vms, :data => topological_inventory_vms)
           ],
+          :refresh_state_part_sent_at => Time.now.utc
         )
       )
     end
